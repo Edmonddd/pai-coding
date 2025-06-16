@@ -100,3 +100,6 @@ export const WRITE_ARTICLE_URL = "/article/edit"
 // ============= 额外的后端工具服务地址 =============
 // excel处理地址
 export const EXCEL_PROCESS_URL = "/tools/transfer"
+
+// SSE通知地址
+export const SSE_NOTIFICATIONS_URL = "/sse/notifications"

@@ -1,13 +1,13 @@
 <template>
   <nav
-    :data-islogin="global.isLogin? 'true' : 'false'"
-    class="navbar navbar-expand-md bg-color-white fixed-top"
+      :data-islogin="global.isLogin? 'true' : 'false'"
+      class="navbar navbar-expand-md bg-color-white fixed-top"
   >
     <div class="nav-body">
       <div class="nav-logo-wrap-lg">
         <a class="navbar-logo-wrap" href="/">
           <img class="logo hidden-when-screen-small" src="/src/assets/static/img/logo.png"/>
-<!--          <img src="/src/assets/static/img/icon.png" class="logo-lg display-when-screen-small" alt="" />-->
+          <!--          <img src="/src/assets/static/img/icon.png" class="logo-lg display-when-screen-small" alt="" />-->
         </a>
 
         <el-dropdown :hide-on-click="false" class="display-when-screen-small center-content">
@@ -48,18 +48,18 @@
       </div>
       <div class="nav-right">
         <button
-          v-if="!route.path.includes('/article/edit') && route.path !== '/article/edit/' && global.isLogin"
-          type="button"
-          class="btn btn-primary nav-article"
-          @click="writeArticle"
+            v-if="!route.path.includes('/article/edit') && route.path !== '/article/edit/' && global.isLogin"
+            type="button"
+            class="btn btn-primary nav-article"
+            @click="writeArticle"
         >
           写文章
         </button>
         <button
-          v-else-if="route.path.includes('/article/edit') || route.path === '/article/edit/'"
-          type="button"
-          class="btn btn-primary nav-article"
-          @click="router.push('/')"
+            v-else-if="route.path.includes('/article/edit') || route.path === '/article/edit/'"
+            type="button"
+            class="btn btn-primary nav-article"
+            @click="router.push('/')"
         >
           返回主页
         </button>
@@ -74,27 +74,27 @@
           <li class="nav-item nav-notice">
             <a class="nav-link navbar-count-msg-box" href="/notice/">
                 <span
-                  v-if="global.msgNum != null && global.msgNum > 0"
-                  class="navbar-count-msg"
+                    v-if="global.msgNum != null && global.msgNum > 0"
+                    class="navbar-count-msg"
                 >
                   {{global.msgNum}}
                 </span>
               <!-- 消息提醒的角标 -->
               <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="icon"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                stroke-width="2"
-                stroke="currentColor"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="icon"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  stroke-width="2"
+                  stroke="currentColor"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
               >
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                 <path
-                  d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"
+                    d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"
                 ></path>
                 <path d="M9 17v1a3 3 0 0 0 6 0v-1"></path>
               </svg>
@@ -107,11 +107,11 @@
             <el-dropdown :hide-on-click="false">
               <div style="display: flex">
                 <img
-                  class="nav-login-img"
-                  style="border-radius: 50%"
-                  :src="global.user.photo? global.user.photo : 'https://static.developers.pub/static/img/logo.b2ff606.jpeg'"
-                  alt=""
-                  loading="lazy"
+                    class="nav-login-img"
+                    style="border-radius: 50%"
+                    :src="global.user.photo? global.user.photo : 'https://static.developers.pub/static/img/logo.b2ff606.jpeg'"
+                    alt=""
+                    loading="lazy"
                 />
                 <div class="center-content m-2"><el-icon size="15"><ArrowDownBold /></el-icon></div>
               </div>
@@ -128,11 +128,11 @@
       </div>
     </div>
   </nav>
-<!--  登录对话框 -->
+  <!--  登录对话框 -->
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from 'vue'
+import { inject, onMounted, ref, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 const router = useRouter()
 const route = useRoute()
@@ -144,6 +144,71 @@ import { useGlobalStore } from '@/stores/global'
 const globalStore = useGlobalStore()
 
 const global = globalStore.global
+
+// SSE 相关变量
+let eventSource: EventSource | null = null;
+
+import { BASE_URL, SSE_NOTIFICATIONS_URL } from '@/http/URL'; // 导入 BASE_URL 和 SSE_NOTIFICATIONS_URL
+
+// 连接 SSE 的函数
+const connectSse = () => {
+  if (eventSource) {
+    eventSource.close(); // 如果存在旧连接，先关闭
+  }
+
+  // 确保用户已登录才尝试连接SSE
+  if (!global.isLogin) {
+    console.log("用户未登录，不建立 SSE 连接。");
+    return;
+  }
+
+  eventSource = new EventSource(BASE_URL + SSE_NOTIFICATIONS_URL, {
+    withCredentials: true // 允许传递 Cookie 和 HTTP 认证信息
+  }); // 使用完整的后端地址
+
+  eventSource.onopen = () => {
+    console.log('SSE 连接已建立。');
+  };
+
+  // 统一处理 SSE 消息的函数
+  const handleSseData = (event: MessageEvent) => {
+    console.log('收到 SSE 消息:', event.data, '事件类型:', event.type);
+    try {
+      const data = JSON.parse(event.data);
+      if (event.type === 'newNotification' && data && typeof data.notificationCount === 'number') {
+        global.msgNum = data.notificationCount;
+      } else {
+        console.warn('收到的 SSE 消息数据格式不正确或类型不匹配:', event.data, '事件类型:', event.type);
+      }
+    } catch (e) {
+      console.error('解析 SSE 消息数据失败:', e, '原始数据:', event.data);
+      // Fallback for non-JSON data, though based on your image, it should be JSON for newNotification
+      const newMsgNum = parseInt(event.data, 10);
+      if (!isNaN(newMsgNum)) {
+        global.msgNum = newMsgNum;
+      }
+    }
+  };
+
+  // 为默认的 'message' 事件类型添加监听器 (如果后端发送不带event字段的消息)
+  eventSource.onmessage = handleSseData;
+
+  // 根据 Network tab 显示的自定义事件类型添加监听器
+  eventSource.addEventListener('newNotification', handleSseData);
+  // eventSource.addEventListener('test', handleSseData);
+
+  eventSource.onerror = (error) => {
+    console.error('SSE 连接错误:', error);
+    eventSource?.close(); // 关闭当前连接
+    eventSource = null; // 清除实例
+
+    // 简单的重连机制，生产环境可能需要更复杂的指数退避策略
+    setTimeout(() => {
+      console.log('尝试重新连接 SSE...');
+      connectSse(); // 尝试重新连接
+    }, 5000); // 5秒后重试
+  };
+};
 
 // ======= 跳转到写文章 ==========
 const writeArticle = () => {
@@ -161,7 +226,28 @@ const activeTab = ref('/')
 onMounted(() => {
   activeTab.value = router.currentRoute.value.path
   console.log(activeTab.value)
+  // connectSse(); // 移除直接调用，交由 watch 处理
+
+  // 监听 global.isLogin 的变化，当登录状态变为 true 时，尝试建立 SSE 连接
+  watch(() => global.isLogin, (newVal) => {
+    if (newVal) {
+      console.log("global.isLogin 变为 true，尝试连接 SSE。");
+      connectSse();
+    }
+  }, { immediate: true }); // immediate: true 确保在组件挂载时立即执行一次回调，如果 global.isLogin 初始就是 true
 })
+
+onBeforeUnmount(() => {
+  if (eventSource) {
+    eventSource.close();
+    console.log('SSE 连接已关闭。');
+  }
+});
+
+const handleMessage = (event: MessageEvent) => {
+// 在这里处理收到的消息
+  console.log("Message received:", event.data);
+};
 
 const registerModal = ref(false)
 
@@ -189,9 +275,9 @@ const personalPage = () => {
   }
   if(global.user.userId != route.params['userId']){
     router.push(global.user.userId? '/user/' + global.user.userId: '/login')
-      .then(() => {
-        window.location.reload()
-      })
+        .then(() => {
+          window.location.reload()
+        })
   }else{
     router.push(global.user.userId? '/user/' + global.user.userId: '/login')
   }
@@ -211,17 +297,17 @@ const toolsPage = () => {
 const logout = () => {
   console.log("退出登录")
   doGet<CommonResponse>(LOGOUT_URL, {})
-    .then((response) => {
-      if(response.data.status.code === 0){
-        messageTip("退出登录成功", MESSAGE_TYPE.SUCCESS)
-        sleep(1)
-        console.log(response.data)
-        // router.replace('/')
-        refreshPage()
-      }})
-    .catch((error) => {
-      console.error(error)
-    })
+      .then((response) => {
+        if(response.data.status.code === 0){
+          messageTip("退出登录成功", MESSAGE_TYPE.SUCCESS)
+          sleep(1)
+          console.log(response.data)
+          // router.replace('/')
+          refreshPage()
+        }})
+      .catch((error) => {
+        console.error(error)
+      })
 }
 
 </script>
